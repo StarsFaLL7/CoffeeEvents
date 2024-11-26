@@ -1,0 +1,6 @@
+﻿services:
+  coffeeevents:
+    image: coffeeevents
+    build:
+      context: .
+      dockerfile: CoffeeEvents/Dockerfile
