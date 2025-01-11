@@ -1,0 +1,29 @@
+﻿using System.ComponentModel.DataAnnotations;
+using CoffeeEvents.Controllers.Base.Responses;
+
+namespace CoffeeEvents.Controllers.UserInfo.Responses;
+
+public class SelfUserInfoResponse
+{
+    public required Guid Id { get; set; }
+    
+    [Phone]
+    public required string Phone { get; set; }
+    
+    [EmailAddress]
+    public required string Email { get; set; }
+    
+    public required string Fio { get; set; }
+    
+    public required string RoleTitle { get; set; }
+    
+    public required string Description { get; set; }
+    
+    public required string Status { get; set; }
+    
+    public required string AvatarImage { get; set; }
+
+    public string City { get; set; } = null!;
+    
+    public required BasicEventInfoResponse[] CreatedEvents { get; set; }
+}
