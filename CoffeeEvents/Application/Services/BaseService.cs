@@ -1,8 +1,8 @@
-﻿using Domain.DataQuery;
+﻿using System.Linq.Dynamic.Core;
+using Domain.DataQuery;
 using Domain.Interfaces;
 using Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Dynamic.Core;
 
 namespace Application.Services;
 
