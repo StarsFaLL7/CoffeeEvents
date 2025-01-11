@@ -1,6 +1,38 @@
 ﻿services:
-  coffeeevents:
-    image: coffeeevents
+
+  webApi:
+    image: coffee-events
     build:
       context: .
-      dockerfile: CoffeeEvents/Dockerfile
+      dockerfile: CoffeeEvents/CoffeeEvents.dockerfile
+    ports:
+      - "8080:80"
+    environment:
+      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=events-postgres;Database=coffeeEvents;User Id=postgres;Password=postgres;
+    depends_on:
+      - "events-postgres"
+    networks:
+      - aspnetcoreapp-network
+  
+  events-postgres:
+    image: postgres:16
+    restart: always
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: coffeeEvents
+    networks:
+      - aspnetcoreapp-network
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+
+networks:
+  aspnetcoreapp-network:
+    driver: bridge
+
+volumes:
+  dbdata:
