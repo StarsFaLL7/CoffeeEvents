@@ -13,7 +13,7 @@ public class UserEvent : IHasId
     
     public required Guid CreatorUserId { get; set; }
     [ForeignKey("CreatorUserId")] 
-    public ApplicationUser CreatorUser { get; set; } = null!;
+    public User CreatorUser { get; set; } = null!;
     
     public required bool IsPublic { get; set; }
     
@@ -31,5 +31,7 @@ public class UserEvent : IHasId
     
     public required DateTime DateStart { get; set; }
 
+    public required DateTime DateEnd { get; set; }
+    
     public string Description { get; set; } = null!;
 }

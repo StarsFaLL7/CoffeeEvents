@@ -9,15 +9,17 @@ public class EventSignupEntry : IHasId
     [Key]
     public Guid Id { get; set; }
     
-    public required Guid EventId { get; set; }
-    [ForeignKey("EventId")]
-    public UserEvent Event { get; set; } = null!;
+    public required Guid SignupWindowId { get; set; }
+    [ForeignKey("SignupWindowId")]
+    public EventSignupWindow SignupWindow { get; set; } = null!;
 
-    public required Guid UserId { get; set; }
+    public Guid? UserId { get; set; }
     [ForeignKey("UserId")]
-    public ApplicationUser User { get; set; } = null!;
+    public User? User { get; set; } = null!;
     
     public string? Phone { get; set; } = null!;
+    
+    public string? Fio { get; set; } = null!;
     
     public string? Email { get; set; } = null!;
 }

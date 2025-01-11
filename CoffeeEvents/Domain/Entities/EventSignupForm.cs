@@ -13,6 +13,8 @@ public class EventSignupForm : IHasId
     
     public required bool IsEmailRequired { get; set; }
     
+    public required bool IsFioRequired { get; set; }
+    
     public required Guid EventId { get; set; }
     [ForeignKey("EventId")] 
     public UserEvent Event { get; set; } = null!;
