@@ -1,67 +1,54 @@
 using Application;
-using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using CoffeeEvents.Components;
-using CoffeeEvents.Components.Account;
-using CoffeeEvents.Components.Account.Services;
-using Domain.Entities;
+using CoffeeEvents.Controllers.Base;
+using CoffeeEvents.Utility;
 using Infrastructure;
+using Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(AuthorizationConfiguration.ConfigureSwaggerWithJwtBearer);
 
-builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddScoped<IdentityUserAccessor>();
-builder.Services.AddScoped<IdentityRedirectManager>();
+builder.Services.AddControllers();
 
-builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultScheme = IdentityConstants.ApplicationScheme;
-        options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-    })
-    .AddIdentityCookies();
+builder.Services.AddHostedService<RevokedAccessTokenCleanupService>();
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure();
+builder.Services.AddScoped<ControllerUtils>();
 
-builder.Services.AddApplicationLayer();
-builder.Services.AddInfrastructureLayer(builder.Configuration.GetConnectionString("DefaultConnection") ??
-                                        throw new InvalidOperationException("Connection string 'DefaultConnection' not found."));
+builder.Services.AddAuthorization();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(AuthorizationConfiguration.ConfigureJwtBearerAuthorization);
 
-if (builder.Environment.IsDevelopment())
+builder.Services.AddCors(options =>
 {
-    builder.Services.AddDatabaseDeveloperPageExceptionFilter();
-}
-
-builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddSignInManager()
-    .AddDefaultTokenProviders();
+    options.AddPolicy("AllowBlazorHttpOrigin",
+        policy => policy.WithOrigins("http://localhost:5175")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials());
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseMigrationsEndPoint();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
-else
-{
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
-}
-app.UseHttpsRedirection();
+app.UseCors("AllowReactHttpOrigin");
+app.UseAuthentication();
+app.UseAuthorization();
+// app.UseMiddleware<RevokedAccessTokenMiddleware>();
+// app.UseHttpsRedirection();
+
+app.MapControllers();
 app.UseStaticFiles();
-app.UseAntiforgery();
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
-
-// Add additional endpoints required by the Identity /Account Razor components.
-app.MapAdditionalIdentityEndpoints();
-
-app.CheckAndMigrateDatabase();
+using (var scope = app.Services.CreateScope())
+{
+    InfrastructureStartup.CheckAndMigrateDatabase(scope);
+}
 
 app.Run();
