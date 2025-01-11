@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace Application.Services.Email;
+namespace Application.Services;
 
 public class SmtpConnectionSettings
 {
@@ -8,7 +8,7 @@ public class SmtpConnectionSettings
     
     public required NetworkCredential AuthCredentials { get; init; }
     
-    public int Port { get; init; } = 587;
+    public int Port { get; } = 587;
     
-    public bool EnableSsl { get; init; } = true;
+    public bool EnableSsl { get; } = true;
 }

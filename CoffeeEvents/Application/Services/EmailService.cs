@@ -1,20 +1,22 @@
 ﻿using System.Net.Mail;
-using Application.Services.Email.Interfaces;
-using Domain.Entities;
 
-namespace Application.Services.Email;
+namespace Application.Services;
 
-public class ApplicationEmailSender : IApplicationEmailSender
+public class EmailService
 {
-    private SmtpConnectionSettings ConnectionSettings { get; }
+    public SmtpConnectionSettings? ConnectionSettings { get; private set; }
     
-    public ApplicationEmailSender(SmtpConnectionSettings settings)
+    public void InitializeSettings(SmtpConnectionSettings settings)
     {
         ConnectionSettings = settings;
     }
     
     public async Task SendEmailAsync(string subject, string authorEmail, string body, bool isHtml, params string[] toEmails)
     {
+        if (ConnectionSettings == null)
+        {
+            throw new InvalidOperationException($"Service must initialized with {nameof(InitializeSettings)}() method before sending messages.");
+        }
         var client = new SmtpClient(ConnectionSettings.SmtpServer)
         {
             Credentials = ConnectionSettings.AuthCredentials,
@@ -34,20 +36,5 @@ public class ApplicationEmailSender : IApplicationEmailSender
         }
         
         await client.SendMailAsync(mailMessage);
-    }
-
-    public async Task SendConfirmationLinkAsync(ApplicationUser user, string email, string confirmationLink)
-    {
-        throw new NotImplementedException();
-    }
-
-    public async Task SendPasswordResetLinkAsync(ApplicationUser user, string email, string resetLink)
-    {
-        throw new NotImplementedException();
-    }
-
-    public async Task SendPasswordResetCodeAsync(ApplicationUser user, string email, string resetCode)
-    {
-        throw new NotImplementedException();
     }
 }
