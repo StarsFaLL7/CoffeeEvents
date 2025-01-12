@@ -1,0 +1,67 @@
+﻿@using ClientApp.Services.Http.Enums
+@using ClientApp.Services.Http.Models
+@using CoffeeEvents.Controllers.UserInfo.Responses
+@using Domain
+
+
+<div class="top-row">
+    <ul class="nav-list">
+        <li class="nav-item">
+            <a class="nav-link" href="/">
+                Начало
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="events">
+                Мероприятия
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="about">
+                О нас
+            </a>
+        </li>
+    </ul>
+    <AuthorizeView>
+        <Authorized>
+            <img src="@(_user?.AvatarImage)" alt="avatar" width="50px" height="50px"/>
+            <a class="btn btn-primary">
+                @(_user?.Fio ?? "Фамилия Имя Отчество")
+            </a>
+        </Authorized>
+        <NotAuthorized>
+            <a class="btn btn-primary" href="login">
+                Войти
+            </a>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+@code
+{
+    private SelfUserInfoResponse? _user;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity != null && authState.User.Identity.IsAuthenticated)
+        {
+            var userId = authState.User.Claims.FirstOrDefault(c => c.Type == AuthOptions.ClaimTypeUserId);
+            if (userId == null)
+            {
+                await LocalStorageService.RemoveItemAsync("authToken");
+                ((TokenAuthenticationStateProvider)AuthenticationStateProvider).NotifyUserLogout();
+                NavigationManager.NavigateTo("/", true);
+                return;
+            }
+
+            var user = await Http.SendHttpRequestAsync<SelfUserInfoResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Get,
+                EndpointPath = $"api/user/"
+            });
+            _user = user;
+            StateHasChanged();
+        }
+    }
+}
