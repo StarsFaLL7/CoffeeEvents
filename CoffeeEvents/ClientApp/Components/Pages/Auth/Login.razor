@@ -1,0 +1,80 @@
+﻿@page "/login"
+@using ClientApp.Services.Http.Enums
+@using ClientApp.Services.Http.Models
+@using CoffeeEvents.Controllers.Authorization.Requests
+@using CoffeeEvents.Controllers.Authorization.Responses
+
+<div class="container text-center login-container">
+    <div class="row mb-3 mt-3">
+        <h1>Войти</h1>
+    </div>
+    <div class="row">
+        <div class="col"></div>
+        <div class="col-4">
+            <div class="login-form">
+                @if (_hasErrors)
+                {
+                <div class="mb-3" style="outline: darkred 1px solid; border-radius: 10px">
+                    <p class="text-danger">@_errorText</p>
+                </div>
+                }
+                <div class="mb-3">
+                    <label for="email-input" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email-input" placeholder="name@example.com" @bind="_emailInput">
+                </div>
+                <div class="mb-3">
+                    <label for="password-input" class="form-label">Пароль</label>
+                    <input type="password" class="form-control" id="password-input" placeholder="*****" @bind="_passwordInput">
+                </div>
+                <div class="mb-2 d-flex justify-content-end">
+                    <a class="link-primary" href="/register">Регистрация нового аккаунта</a>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button class="btn btn-primary" @onclick="LogInUserAsync">Войти</button>
+                </div>
+            </div>
+        </div>
+        <div class="col"></div>
+    </div>
+</div>
+
+@code {
+    private string _passwordInput = "";
+    private string _emailInput = "";
+    private bool _hasErrors;
+    private string _errorText = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await AuthManager.IsUserLoggedAsync())
+        {
+            NavigationManager.NavigateTo("/", true);
+        }
+    }
+
+    private async Task LogInUserAsync()
+    {
+        try
+        {
+            var response = (await Http.SendHttpRequestAsync<LoginResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Post,
+                EndpointPath = "api/auth/login",
+                Body = new LoginRequest
+                {
+                    Email = _emailInput,
+                    Password = _passwordInput
+                }
+            }))!;
+            await AuthManager.LoginUserAsync(response.AccessToken);
+            NavigationManager.NavigateTo("/", true);
+            
+        }
+        catch (HttpRequestException e)
+        {
+            _hasErrors = true;
+            _errorText = "Неправильная пара email-пароль.";
+            StateHasChanged();
+        }
+    }
+}

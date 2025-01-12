@@ -1,0 +1,45 @@
+﻿<div class="input-group mb-3" style="width: @Width;">
+    <input type="text" class="form-control" placeholder="@Placeholder" 
+           aria-label="@Placeholder" aria-describedby="button-addon"
+           @oninput="Input" @bind="@Text" @onkeydown="KeyDownInInput">
+    <button class="btn btn-outline-secondary" type="button" id="button-addon" @onclick="() => MakeSearch(Text)">
+        <img alt="" src="images/icon-search-16px.svg"/>
+    </button>
+</div>
+
+@code {
+    [Parameter]
+    [EditorRequired]
+    public string Width { get; set; }
+    
+    [Parameter]
+    public EventCallback<string> OnInput { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnSearch { get; set; }
+    
+    [Parameter] 
+    public string Placeholder { get; set; } = "Поиск...";
+    
+    public string Text { get; set; } = "";
+    
+    private void Input(ChangeEventArgs obj)
+    {
+        Text = (string)obj.Value;
+        OnInput.InvokeAsync(Text);
+    }
+
+    private void MakeSearch(string text)
+    {
+        OnSearch.InvokeAsync(text);
+    }
+
+    private void KeyDownInInput(KeyboardEventArgs obj)
+    {
+        if (obj.Key == "Enter")
+        {
+            MakeSearch(Text);
+        }
+    }
+
+}

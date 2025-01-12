@@ -1,0 +1,154 @@
+﻿@page "/register"
+@using System.Text.RegularExpressions
+@using Blazored.LocalStorage
+@using ClientApp.Services.Http.Models
+@using CoffeeEvents.Controllers.Authorization.Requests
+@using CoffeeEvents.Controllers.Authorization.Responses
+@using CoffeeEvents.Controllers.Common.Responses
+<div class="container text-center login-container">
+    <div class="row mb-3 mt-3">
+        <h1>Регистрация</h1>
+    </div>
+    <div class="row">
+        <div class="col"></div>
+        <div class="col-4">
+            <div class="login-form">
+                @if (_hasErrors)
+                {
+                    <div class="mb-3" style="outline: darkred 1px solid; border-radius: 10px">
+                        Внимание:
+                        <ul class="text-danger p-0 m-0">
+                            @foreach (var error in _errorsList)
+                            {
+                                <li style="list-style-position: inside;">@error</li>
+                            }
+                        </ul>
+                    </div>
+                }
+                <div class="mb-3">
+                    <label for="fio-input" class="form-label">ФИО</label>
+                    <input type="text" class="form-control" id="fio-input" placeholder="Иванов Олег Олегович" @bind="_fioInput">
+                </div>
+                <DropDown Items="_cities" @ref="_dropdownCities" AddEmptyVariant="true" Title="Город" > </DropDown>
+                <div class="mb-3">
+                    <label for="email-input" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email-input" placeholder="name@example.com" @bind="_emailInput">
+                </div>
+                <div class="mb-3">
+                    <label for="password-input" class="form-label">Пароль</label>
+                    <input type="password" class="form-control" id="password-input" placeholder="*****" @bind="_passwordInput">
+                </div>
+                <div class="mb-3">
+                    <label for="password-input-2" class="form-label">Повторите пароль</label>
+                    <input type="password" class="form-control" id="password-input-2" placeholder="*****" @bind="_passwordInputRepeat">
+                </div>
+                <div class="mb-2 d-flex justify-content-end">
+                    <a class="link-primary" href="/login">Уже есть аккаунт?</a>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button class="btn btn-primary" @onclick="() => RegisterUser()">Зарегистрироваться</button>
+                </div>
+            </div>
+        </div>
+        <div class="col"></div>
+    </div>
+</div>
+
+@code {
+    private string _fioInput = "";
+    private string _emailInput = "";
+    private string _passwordInput = "";
+    private string _passwordInputRepeat = "";
+    private List<string> _cities = [];
+    private bool _hasErrors;
+    private readonly List<string> _errorsList = [];
+    private DropDown<string> _dropdownCities;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await AuthManager.IsUserLoggedAsync())
+        {
+            NavigationManager.NavigateTo("/", true);
+        }
+        var response = await Http.SendHttpRequestAsync<CitiesResponse>(new HttpRequestData
+        {
+            Method = HttpMethod.Get,
+            EndpointPath = "api/cities"
+        });
+        if (response != null)
+        {
+            foreach (var cityName in response.Cities.Select(c => c.Name).OrderBy(s => s))
+            {
+                _dropdownCities.AddItem(cityName);
+            }
+        }
+        else
+        {
+            _dropdownCities.AddItem("Ошибка получения списка городов.");
+        }
+    }
+
+    private async Task RegisterUser()
+    {
+        _errorsList.Clear();
+        _hasErrors = false;
+        if (!IsValidEmail(_emailInput))
+        {
+            _hasErrors = true;
+            _errorsList.Add("Некорректный e-mail адрес.");
+        }
+        if (_passwordInput != _passwordInputRepeat)
+        {
+            _hasErrors = true;
+            _errorsList.Add("Пароли не совпадают.");
+        }
+
+        if (_passwordInput.Length < 8)
+        {
+            _hasErrors = true;
+            _errorsList.Add("Пароль должен быть длиной 8 или более символов.");
+        }
+
+        foreach (var er  in _errorsList)
+        {
+            Console.WriteLine(er);
+        }
+        StateHasChanged();
+        if (!_hasErrors)
+        {
+            await SendRequestToRegister();
+        }
+    }
+    
+    private async Task SendRequestToRegister()
+    {
+        var response = await Http.SendHttpRequestAsync<RegisterResponse>(new HttpRequestData
+        {
+            Method = HttpMethod.Post,
+            EndpointPath = "api/auth/register",
+            Body = new RegisterRequest
+            {
+                Email = _emailInput,
+                Password = _passwordInput,
+                Fio = _fioInput,
+                City = _dropdownCities.SelectedItem
+            }
+        });
+        if (response == null)
+        {
+            return;
+        }
+        await AuthManager.LoginUserAsync(response.AccessToken);
+        NavigationManager.NavigateTo("/", true);
+    }
+
+    private bool IsValidEmail(string email)
+    {
+        if (email.Count(s => s == '@') != 1)
+        {
+            return false;
+        }
+        var pattern = ".+@[a-z]+[.][a-z]+";
+        return Regex.IsMatch(email, pattern);
+    }
+}
