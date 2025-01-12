@@ -3,7 +3,7 @@ using Domain.Interfaces;
 
 namespace Domain.DataQuery;
 
-public class SortingParams<TEntity> where TEntity : class, IHasId
+public class SortingParams<TEntity> where TEntity : class
 {
     public Expression<Func<TEntity, object?>>? OrderBy { get; set; } = null!;
     

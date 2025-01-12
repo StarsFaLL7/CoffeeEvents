@@ -30,40 +30,4 @@
       <ProjectReference Include="..\Domain\Domain.csproj" />
       <ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
     </ItemGroup>
-
-    <ItemGroup>
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\ChangePassword.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\DeletePersonalData.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\Disable2fa.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\Email.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\EnableAuthenticator.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\ExternalLogins.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\GenerateRecoveryCodes.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\Index.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\PersonalData.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\ResetAuthenticator.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\SetPassword.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\TwoFactorAuthentication.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Manage\_Imports.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Login.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\Register.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Pages\ResetPassword.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Shared\AccountLayout.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Shared\ManageLayout.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Shared\ManageNavMenu.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Shared\RedirectToLogin.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Shared\ShowRecoveryCodes.razor" />
-      <_ContentIncludedByDefault Remove="Components\Account\Shared\StatusMessage.razor" />
-      <_ContentIncludedByDefault Remove="Components\Layout\MainLayout.razor" />
-      <_ContentIncludedByDefault Remove="Components\Layout\NavMenu.razor" />
-      <_ContentIncludedByDefault Remove="Components\Pages\Auth.razor" />
-      <_ContentIncludedByDefault Remove="Components\Pages\Counter.razor" />
-      <_ContentIncludedByDefault Remove="Components\Pages\Error.razor" />
-      <_ContentIncludedByDefault Remove="Components\Pages\Home.razor" />
-      <_ContentIncludedByDefault Remove="Components\Pages\Weather.razor" />
-      <_ContentIncludedByDefault Remove="Components\App.razor" />
-      <_ContentIncludedByDefault Remove="Components\Routes.razor" />
-      <_ContentIncludedByDefault Remove="Components\_Imports.razor" />
-    </ItemGroup>
-
 </Project>

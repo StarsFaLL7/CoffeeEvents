@@ -3,11 +3,8 @@ using Domain.Interfaces;
 
 namespace Domain.Entities.Cities;
 
-public class FullCityModel : IHasId
+public class FullCityModel
 {
-    [Key]
-    public required Guid Id { get; set; }
-    
     public required CoordsModel Coords { get; set; }
     
     public required string District { get; set; }

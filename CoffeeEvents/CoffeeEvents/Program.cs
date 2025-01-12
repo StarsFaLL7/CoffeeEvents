@@ -37,7 +37,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-app.UseCors("AllowReactHttpOrigin");
+app.UseCors("AllowBlazorHttpOrigin");
 app.UseAuthentication();
 app.UseAuthorization();
 // app.UseMiddleware<RevokedAccessTokenMiddleware>();
