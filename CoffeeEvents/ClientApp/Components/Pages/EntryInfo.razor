@@ -1,0 +1,177 @@
+﻿@page "/api/events/{EventId:guid}/entries/{EntryId:guid}"
+@using CoffeeEvents.Controllers.Events.Responses
+<div class="container">
+    <div class="row">
+        <h1 class="mb-4 p-0">Запись на мероприятие</h1>
+    </div>
+    <div class="row">
+        <h3 class="mb-3 p-0">Мероприятие "@(_eventInfo.Title)"</h3>
+    </div>
+    <div class="row">
+        <h4 class="p-0 mb-1">Описание</h4>
+    </div>
+    <div class="row mb-3">
+        <p class="text-body p-0 m-0">
+            @_eventInfo.Description
+        </p>
+    </div>
+    <div class="row">
+        <h3 class="p-0 mb-1">Информация о записи</h3>
+    </div>
+    <div class="row mb-3">
+        <div class="col col-auto p-3" style="border-radius: 10px; border: #1a1e21 solid 1px">
+            <p class="p-0 mb-1"><b>Время посещения:</b> @ConvertDateTimeToStr(_signupInfo.DateTime)</p>
+            @if (!string.IsNullOrWhiteSpace(_signupInfo.Email))
+            {
+                <p class="p-0 mb-1"><b>E-mail:</b> @_signupInfo.Email</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(_signupInfo.Phone))
+            {
+                <p class="p-0 mb-1"><b>Номер телефона:</b> @_signupInfo.Phone</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(_signupInfo.Fio))
+            {
+                <p class="p-0 mb-1"><b>ФИО:</b> @_signupInfo.Fio</p>
+            }
+            @foreach (var dynamicFieldInfo in _signupInfo.DynamicFieldsData)
+            {
+                <p class="p-0 mb-1"><b>@dynamicFieldInfo.Key:</b> @dynamicFieldInfo.Value</p>
+            }
+            <p class="p-0"><b>Уникальный ID записи:</b> @_signupInfo.EntryId</p>
+        </div>
+    </div>
+    <div class="row mb-3">
+        <div class="col col-auto p-0">
+            <a href="/events/@EventId" class="btn btn-primary">Перейти на страницу мероприятия</a>
+        </div>
+    </div>
+    @if (_eventInfo.OrganizerContacts.Length > 0)
+    {
+        <div class="row">
+            <h3 class="p-0 mb-1">Контакты организатора</h3>
+        </div>
+        <div class="row row-cols-auto">
+            @foreach (var contacts in _eventInfo.OrganizerContacts)
+            {
+                <div class="col p-0">
+                    <div class="card">
+                        <div class="card-header">
+                            Контакты организатора
+                        </div>
+                        <div class="card-body">
+                            @if (!string.IsNullOrWhiteSpace(contacts.Email))
+                            {
+                            <p class="card-text">Email: @contacts.Email</p>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(contacts.Fio))
+                            {
+                            <p class="card-text">ФИО: @contacts.Fio</p>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(contacts.Phone))
+                            {
+                            <p class="card-text">Номер телефона: @contacts.Email</p>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(contacts.Telegram))
+                            {
+                            <p class="card-text">Telegram: @contacts.Telegram</p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid EventId { get; set; }
+    [Parameter]
+    public Guid EntryId { get; set; }
+
+    private SignupResponse _signupInfo = new SignupResponse
+    {
+        EventId = default,
+        EntryId = default,
+        DateTime = default,
+        DynamicFieldsData = []
+    };
+    private FullEventInfoResponse _eventInfo = new FullEventInfoResponse
+    {
+        IsPublic = false,
+        Title = "Название мероприятия",
+        BannerImageFilepath = "",
+        IsOnline = true,
+        IsSignupOpened = false,
+        City = "Город",
+        Address = "Адрес",
+        DateStart = DateTime.Now,
+        DateEnd = DateTime.Now,
+        Description = "Описание мероприятия.",
+        OrganizerContacts = [],
+        SignupWindows = []
+    };
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _signupInfo = await GetSignUpInfo();
+        _eventInfo = await GetEventInfo();
+        
+    }
+    
+    private async Task<FullEventInfoResponse> GetEventInfo()
+    {
+        FullEventInfoResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<FullEventInfoResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Get,
+                EndpointPath = $"api/events/{EventId}"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            NavigationManager.NavigateTo("/events", true, true);
+            return null!;
+        }
+        if (response == null)
+        {
+            NavigationManager.NavigateTo("/events", true, true);
+            return null!;
+        }
+
+        return response;
+        
+    }
+
+    private async Task<SignupResponse> GetSignUpInfo()
+    {
+        SignupResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<SignupResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Get,
+                EndpointPath = $"api/events/{EventId}/entries/{EntryId}"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            NavigationManager.NavigateTo("/", true, true);
+            return null!;
+        }
+        if (response == null)
+        {
+            NavigationManager.NavigateTo("/", true, true);
+            return null!;
+        }
+
+        return response;
+    }
+    
+    private string ConvertDateTimeToStr(DateTime value)
+    {
+        return value.ToString("dd.MM.yyyy HH:mm");
+    }
+}

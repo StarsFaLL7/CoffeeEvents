@@ -1,0 +1,252 @@
+﻿@page "/edit-event/{EventId:guid}/windows"
+@using CoffeeEvents.Controllers.Base.Responses
+@using CoffeeEvents.Controllers.Events.Responses
+@using CoffeeEvents.Controllers.EventSignupWindows.Requests
+@using CoffeeEvents.Controllers.MyEvents.Responses
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <div class="row">
+                <h1 class="mb-4">Редактирование "@_eventInfo.Title"</h1>
+            </div>
+            <div class="row row-cols-auto">
+                <div class="col">
+                    <h4 class="mb-3">Окна записи</h4>
+                </div>
+                <div class="col">
+                    <button class="btn btn-primary" @onclick="CreateNewButtonClicked" style="width: fit-content">Создать новое</button>
+                </div>
+            </div>
+            @if (_hasErrors)
+            {
+            <div class="row mb-3 p-3" style="outline: darkred 1px solid; border-radius: 10px">
+                Внимание:
+                <ul class="text-danger p-0 m-0">
+                    @foreach (var error in _errorsList)
+                    {
+                    <li style="list-style-position: inside;">@error</li>
+                    }
+                </ul>
+            </div>
+            }
+            <div class="row row-cols-auto">
+                @foreach (var window in _eventInfo.SignupWindows)
+                {
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-header">
+                                "@(window.Title)" @ConvertDateTimeToStr(window.DateTime), Места: @(window.TicketsLeft)/@window.MaxVisitors
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="title-input" class="form-label">Название</label>
+                                    <input type="text" class="form-control" id="title-input" placeholder="Название окна записи" @bind="window.Title">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="visitors-input" class="form-label">Кол-во мест</label>
+                                    <input type="number" class="form-control" id="visitors-input" placeholder="Кол-во мест" @bind="window.MaxVisitors">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="date-input" class="form-label">Дата и время</label>
+                                    <input type="datetime" class="form-control" id="date-input" @bind="window.DateTime">
+                                </div>
+                                <button class="btn btn-success" @onclick="() => SaveButtonClicked(window.Id)" style="width: fit-content">Сохранить</button>
+                                <button class="btn btn-outline-danger" @onclick="() => DeleteButtonClicked(window.Id)" style="width: fit-content">Удалить</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="col-2">
+            <EditEventNavigation EventId="EventId" ActiveTab="EditEventTab.SignUpWindows" />
+        </div>
+    </div>
+</div>
+@code {
+    [Parameter]
+    public Guid EventId { get; set; }
+    
+    private bool _hasErrors;
+    private List<string> _errorsList = [];
+    
+    private EventResponse _eventInfo = new EventResponse
+    {
+        IsPublic = false,
+        Title = "Название мероприятия",
+        IsOnline = true,
+        IsSignupOpened = false,
+        City = "Город",
+        Address = "Адрес",
+        DateStart = DateTime.Now,
+        DateEnd = DateTime.Now,
+        Description = "Описание мероприятия.",
+        SignupWindows = [],
+        BannerImage = "",
+        SignupForm = new EventFormResponse
+        {
+            IsFioRequired = false,
+            IsPhoneRequired = false,
+            IsEmailRequired = false,
+            DynamicFields = []
+        },
+        Contacts = []
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _eventInfo = await GetEventInfo();
+    }
+
+    private async Task<EventResponse> GetEventInfo()
+    {
+        EventResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<EventResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Get,
+                EndpointPath = $"api/my-events/{EventId}"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            NavigationManager.NavigateTo("/my-events", true, true);
+            return null!;
+        }
+        if (response == null)
+        {
+            NavigationManager.NavigateTo("/my-events", true, true);
+            return null!;
+        }
+
+        return response;
+    }
+    
+    private async Task SaveButtonClicked(Guid windowId)
+    {
+        SignupWindowResponse? response;
+        _hasErrors = false;
+        _errorsList.Clear();
+        var window = _eventInfo.SignupWindows.FirstOrDefault(w => w.Id == windowId);
+        if (window == null)
+        {
+            AddError("Возникла ошибка, перезагрузите страницу.");
+            return;
+        }
+        try
+        {
+            response = await Http.SendHttpRequestAsync<SignupWindowResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Put,
+                EndpointPath = $"api/my-events/{EventId}/windows/{windowId}", 
+                Body = new UpdateSignupWindowRequest
+                {
+                    Title = window.Title,
+                    Date = window.DateTime.ToString("dd-MM-yyyy"),
+                    Time = window.DateTime.ToString("HH-mm"),
+                    MaxVisitors = window.MaxVisitors
+                }
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Возникла ошибка во время сохранения окна записи: {e.Message}");
+            return;
+        }
+        if (response == null)
+        {
+            AddError($"Возникла неизвестная ошибка во время сохранения окна записи.");
+            return;
+        }
+
+        window.DateTime = response.DateTime;
+        window.Title = response.Title;
+        window.MaxVisitors = response.MaxVisitors;
+        window.TicketsLeft = response.TicketsLeft;
+        StateHasChanged();
+    }
+
+    
+    private string ConvertDateTimeToStr(DateTime value)
+    {
+        return value.ToString("dd.MM.yyyy HH:mm");
+    }
+
+    private async Task DeleteButtonClicked(Guid windowId)
+    {
+        BaseStatusResponse? response;
+        _hasErrors = false;
+        _errorsList.Clear();
+        try
+        {
+            response = await Http.SendHttpRequestAsync<BaseStatusResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Delete,
+                EndpointPath = $"api/my-events/{EventId}/windows/{windowId}",
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Возникла ошибка во время удаления окна записи: {e.Message}");
+            return;
+        }
+        if (response == null)
+        {
+            AddError($"Возникла неизвестная ошибка во время удаления окна записи.");
+            return;
+        }
+        if (!response.Completed)
+        {
+            AddError($"Возникла ошибка во время удаления окна записи: {response.Message}");
+            return;
+        }
+
+        var windowToRemove = _eventInfo.SignupWindows.First(w => w.Id == windowId);
+        var list = _eventInfo.SignupWindows.ToList();
+        list.Remove(windowToRemove);
+        _eventInfo.SignupWindows = list.ToArray();
+        StateHasChanged();
+    }
+    
+    private async Task CreateNewButtonClicked()
+    {
+        SignupWindowResponse? response;
+        _hasErrors = false;
+        _errorsList.Clear();
+        try
+        {
+            response = await Http.SendHttpRequestAsync<SignupWindowResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Post,
+                EndpointPath = $"api/my-events/{EventId}/windows/",
+                Body = new CreateSignupWindowRequest
+                {
+                    Title = "Новое окно записи",
+                    Date = DateTime.Now.ToString("dd-MM-yyyy"),
+                    Time = DateTime.Now.ToString("HH-mm")
+                }
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Возникла ошибка во время создания окна записи: {e.Message}");
+            return;
+        }
+
+        if (response == null)
+        {
+            AddError($"Возникла неизвестная ошибка во время создания окна записи.");
+            return;
+        }
+
+        _eventInfo.SignupWindows = _eventInfo.SignupWindows.Append(response).ToArray();
+    }
+    
+    private void AddError(string text)
+    {
+        _errorsList.Add(text);
+        _hasErrors = true;
+        StateHasChanged();
+    }
+}

@@ -1,0 +1,246 @@
+﻿@page "/edit-event/{EventId:guid}/contacts"
+@using CoffeeEvents.Controllers.Base.Responses
+@using CoffeeEvents.Controllers.EventOrganizerContacts.Requests
+@using CoffeeEvents.Controllers.Events.Responses
+@using CoffeeEvents.Controllers.EventSignupWindows.Requests
+@using CoffeeEvents.Controllers.MyEvents.Responses
+
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <div class="row">
+                <h1 class="mb-4">Редактирование "@_eventInfo.Title"</h1>
+            </div>
+            <div class="row row-cols-auto">
+                <div class="col">
+                    <h4 class="mb-3">Контакты организатора</h4>
+                </div>
+                <div class="col">
+                    <button class="btn btn-primary" @onclick="CreateNewButtonClicked" style="width: fit-content">Создать новые</button>
+                </div>
+            </div>
+            @if (_hasErrors)
+            {
+            <div class="row mb-3 p-3" style="outline: darkred 1px solid; border-radius: 10px">
+                Внимание:
+                <ul class="text-danger p-0 m-0">
+                    @foreach (var error in _errorsList)
+                    {
+                    <li style="list-style-position: inside;">@error</li>
+                    }
+                </ul>
+            </div>
+            }
+            <div class="row row-cols-auto">
+                @foreach (var contacts in _eventInfo.Contacts)
+                {
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-header">
+                                Контакты организатора
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="fio-input" class="form-label">ФИО</label>
+                                    <input type="text" class="form-control" id="fio-input" placeholder="Иванов Иван Иванович" @bind="contacts.Fio">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="email-input" class="form-label">E-mail</label>
+                                    <input type="email" class="form-control" id="email-input" placeholder="example@mail.com" @bind="contacts.Email">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="phone-input" class="form-label">Номер телефона</label>
+                                    <input type="text" class="form-control" id="phone-input" placeholder="+7 (999) 123-45-67" @bind="contacts.Phone">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="tg-input" class="form-label">Telegram</label>
+                                    <input type="text" class="form-control" id="tg-input" placeholder="@@tg_username" @bind="contacts.Telegram">
+                                </div>
+                                <button class="btn btn-success" @onclick="() => SaveButtonClicked(contacts.Id)" style="width: fit-content">Сохранить</button>
+                                <button class="btn btn-outline-danger" @onclick="() => DeleteButtonClicked(contacts.Id)" style="width: fit-content">Удалить</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="col-2">
+            <EditEventNavigation EventId="EventId" ActiveTab="EditEventTab.Contacts" />
+        </div>
+    </div>
+</div>
+@code {
+    [Parameter]
+    public Guid EventId { get; set; }
+    
+    private bool _hasErrors;
+    private List<string> _errorsList = [];
+    
+    private EventResponse _eventInfo = new EventResponse
+    {
+        IsPublic = false,
+        Title = "Название мероприятия",
+        IsOnline = true,
+        IsSignupOpened = false,
+        City = "Город",
+        Address = "Адрес",
+        DateStart = DateTime.Now,
+        DateEnd = DateTime.Now,
+        Description = "Описание мероприятия.",
+        SignupWindows = [],
+        BannerImage = "",
+        SignupForm = new EventFormResponse
+        {
+            IsFioRequired = false,
+            IsPhoneRequired = false,
+            IsEmailRequired = false,
+            DynamicFields = []
+        },
+        Contacts = []
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _eventInfo = await GetEventInfo();
+    }
+
+    private async Task<EventResponse> GetEventInfo()
+    {
+        EventResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<EventResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Get,
+                EndpointPath = $"api/my-events/{EventId}"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            NavigationManager.NavigateTo("/my-events", true, true);
+            return null!;
+        }
+        if (response == null)
+        {
+            NavigationManager.NavigateTo("/my-events", true, true);
+            return null!;
+        }
+
+        return response;
+    }
+    
+    private async Task SaveButtonClicked(Guid contactsId)
+    {
+        ContactsResponse? response;
+        _hasErrors = false;
+        _errorsList.Clear();
+        var contacts = _eventInfo.Contacts.FirstOrDefault(w => w.Id == contactsId);
+        if (contacts == null)
+        {
+            AddError("Возникла ошибка, перезагрузите страницу.");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(contacts.Email))
+        {
+            AddError("Введите e-mail адрес, он обязателен для контактов.");
+            return;
+        }
+        try
+        {
+            response = await Http.SendHttpRequestAsync<ContactsResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Put,
+                EndpointPath = $"api/my-events/{EventId}/contacts/{contactsId}", 
+                Body = new UpdateOrganizerContactsRequest
+                {
+                    Email = contacts.Email,
+                    Fio = contacts.Fio,
+                    Phone = contacts.Phone,
+                    Telegram = contacts.Telegram
+                }
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Возникла ошибка во время сохранения контактов: {e.Message}");
+            return;
+        }
+        if (response == null)
+        {
+            AddError($"Возникла неизвестная ошибка во время сохранения контактов.");
+            return;
+        }
+        StateHasChanged();
+    }
+
+    private async Task DeleteButtonClicked(Guid contactsId)
+    {
+        BaseStatusResponse? response;
+        _hasErrors = false;
+        _errorsList.Clear();
+        try
+        {
+            response = await Http.SendHttpRequestAsync<BaseStatusResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Delete,
+                EndpointPath = $"api/my-events/{EventId}/contacts/{contactsId}",
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Возникла ошибка во время удаления контактов: {e.Message}");
+            return;
+        }
+        if (response == null)
+        {
+            AddError($"Возникла неизвестная ошибка во время удаления контактов.");
+            return;
+        }
+        if (!response.Completed)
+        {
+            AddError($"Возникла ошибка во время удаления контактов: {response.Message}");
+            return;
+        }
+
+        var contactsToRemove = _eventInfo.Contacts.First(c => c.Id == contactsId);
+        var list = _eventInfo.Contacts.ToList();
+        list.Remove(contactsToRemove);
+        _eventInfo.Contacts = list.ToArray();
+        StateHasChanged();
+    }
+    
+    private async Task CreateNewButtonClicked()
+    {
+        ContactsResponse? response;
+        _hasErrors = false;
+        _errorsList.Clear();
+        try
+        {
+            response = await Http.SendHttpRequestAsync<ContactsResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Post,
+                EndpointPath = $"api/my-events/{EventId}/contacts/"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Возникла ошибка во время создания контактов: {e.Message}");
+            return;
+        }
+
+        if (response == null)
+        {
+            AddError($"Возникла неизвестная ошибка во время создания контактов.");
+            return;
+        }
+
+        _eventInfo.Contacts = _eventInfo.Contacts.Append(response).ToArray();
+    }
+    
+    private void AddError(string text)
+    {
+        _errorsList.Add(text);
+        _hasErrors = true;
+        StateHasChanged();
+    }
+}

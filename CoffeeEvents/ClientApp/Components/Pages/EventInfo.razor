@@ -1,0 +1,178 @@
+﻿@page "/events/{EventId:guid}"
+@using ClientApp.Services.Http.Models
+@using CoffeeEvents.Controllers.Events.Responses
+
+<div class="container">
+    <div class="row">
+        <h1 class="mb-4">Информация о мероприятии</h1>
+    </div>
+    <div class="row mb-3">
+        <div class="col col-4">
+            <img src="@_eventInfo.BannerImageFilepath" class="img-fluid" alt="@_eventInfo.Title">
+        </div>
+        <div class="col col-8">
+            <div class="row">
+                <h2 class="p-0 mb-3">@_eventInfo.Title</h2>
+            </div>
+            <div class="row">
+                <ul class="list-group mb-3">
+                    <li class="list-group-item">Общедоступное: @ConvertBoolToStr(_eventInfo.IsPublic)</li>
+                    <li class="list-group-item">Онлайн: @ConvertBoolToStr(_eventInfo.IsOnline)</li>
+                    @if (!_eventInfo.IsOnline)
+                    {
+                        <li class="list-group-item">Город: @_eventInfo.City, Адрес: @_eventInfo.Address</li>
+                    }
+
+                    <li class="list-group-item">Даты: С @ConvertDateToStr(_eventInfo.DateStart) по @ConvertDateToStr(_eventInfo.DateEnd)</li>
+                    <li class="list-group-item">Можно записаться: @ConvertBoolToStr(_eventInfo.IsSignupOpened)</li>
+                </ul>
+            </div>
+            <div class="row">
+                <h3 class="p-0 mb-1">Описание</h3>
+            </div>
+            <div class="row mb-3">
+                <p class="text-body p-0 m-0">
+                    @_eventInfo.Description
+                </p>
+            </div>
+            <div class="row">
+                @if (_eventInfo.IsSignupOpened)
+                {
+                    <a class="btn btn-primary" href="events/@EventId/sign-up" style="width: fit-content">
+                        Записаться
+                    </a>
+                }
+                else
+                {
+                    <a class="btn btn-primary" href="#" style="width: fit-content" disabled="true">
+                        Записаться
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            @if (_eventInfo.IsSignupOpened)
+            {
+            <div class="row mb-3">
+                <div class="col">
+                    <div class="row">
+                        <h3 class="p-0 mb-1">Доступные окна записи: </h3>
+                    </div>
+                    <div class="row">
+                        <ul class="list-group">
+                            @foreach (var window in _eventInfo.SignupWindows)
+                            {
+                            <li class="list-group-item">
+                                <h5 class="m-0 p-0">@window.Title</h5>
+                                <p class="m-0 p-0">
+                                    Дата: @ConvertDateToStr(window.DateTime) @ConvertTimeToStr(window.DateTime). Свободные места: @(window.TicketsLeft)/@(window.MaxVisitors)
+                                </p>
+                            </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            }
+            @if (_eventInfo.OrganizerContacts.Length > 0)
+            {
+                <div class="row">
+                    <h3 class="p-0 mb-1">Контакты: </h3>
+                </div>
+                <div class="row row-cols-auto">
+                    @foreach (var contacts in _eventInfo.OrganizerContacts)
+                    {
+                        <div class="col p-0">
+                            <div class="card">
+                                <div class="card-header">
+                                    Контакты организатора
+                                </div>
+                                <div class="card-body">
+                                    @if (!string.IsNullOrWhiteSpace(contacts.Email))
+                                    {
+                                        <p class="card-text">Email: @contacts.Email</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(contacts.Fio))
+                                    {
+                                        <p class="card-text">ФИО: @contacts.Fio</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(contacts.Phone))
+                                    {
+                                        <p class="card-text">Номер телефона: @contacts.Email</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(contacts.Telegram))
+                                    {
+                                        <p class="card-text">Telegram: @contacts.Telegram</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid EventId { get; set; }
+    
+    private FullEventInfoResponse _eventInfo = new FullEventInfoResponse
+    {
+        IsPublic = false,
+        Title = "Название мероприятия",
+        BannerImageFilepath = "",
+        IsOnline = true,
+        IsSignupOpened = false,
+        City = "Город",
+        Address = "Адрес",
+        DateStart = DateTime.Now,
+        DateEnd = DateTime.Now,
+        Description = "Описание меропрития.",
+        OrganizerContacts = [],
+        SignupWindows = []
+    };
+    
+    protected override async Task OnInitializedAsync()
+    {
+        FullEventInfoResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<FullEventInfoResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Get,
+                EndpointPath = $"api/events/{EventId}"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            NavigationManager.NavigateTo("/events", true, true);
+            return;
+        }
+        if (response == null)
+        {
+            NavigationManager.NavigateTo("/events", true, true);
+            return;
+        }
+
+        _eventInfo = response;
+    }
+    
+    private string ConvertBoolToStr(bool value)
+    {
+        return value ? "Да" : "Нет";
+    }
+    
+    private string ConvertDateToStr(DateTime value)
+    {
+        return value.ToString("dd.MM.yyyy");
+    }
+    
+    private string ConvertTimeToStr(DateTime value)
+    {
+        return value.ToString("HH:mm");
+    }
+}

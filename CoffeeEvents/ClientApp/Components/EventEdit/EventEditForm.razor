@@ -1,0 +1,364 @@
+﻿@page "/edit-event/{EventId:guid}/form"
+@using CoffeeEvents.Controllers.Base.Responses
+@using CoffeeEvents.Controllers.DynamicFields.Requests
+@using CoffeeEvents.Controllers.DynamicFieldTypes.Responses
+@using CoffeeEvents.Controllers.EventForm.Requests
+@using CoffeeEvents.Controllers.Events.Responses
+@using CoffeeEvents.Controllers.MyEvents.Responses
+
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <div class="row">
+                <h1 class="mb-4">Редактирование "@_eventInfo.Title"</h1>
+            </div>
+            <div class="row">
+                <h4 class="mb-3">Форма записи</h4>
+            </div>
+            <div class="mb-2 form-check">
+                <label class="form-check-label" for="emailCheckbox">
+                    Требуется указывать E-mail
+                </label>
+                <input class="form-check-input" type="checkbox" id="emailCheckbox" @bind="_eventInfo.SignupForm.IsEmailRequired">
+            </div>
+            <div class="mb-2 form-check">
+                <label class="form-check-label" for="fioCheckbox">
+                    Требуется указывать ФИО
+                </label>
+                <input class="form-check-input" type="checkbox" id="fioCheckbox" @bind="_eventInfo.SignupForm.IsFioRequired">
+            </div>
+            <div class="mb-2 form-check">
+                <label class="form-check-label" for="phoneCheckbox">
+                    Требуется указывать номер телефона
+                </label>
+                <input class="form-check-input" type="checkbox" id="phoneCheckbox" @bind="_eventInfo.SignupForm.IsPhoneRequired">
+            </div>
+            <div class="row mb-4">
+                <div class="col col-auto">
+                    <button class="btn btn-success" @onclick="SaveFormButtonClicked" style="width: fit-content">Сохранить</button>
+                </div>
+            </div>
+            
+            <div class="row row-cols-auto mb-3">
+                <div class="col">
+                    <h5 class="mb-3">Свои поля для ввода</h5>
+                </div>
+                <div class="col">
+                    <button class="btn btn-primary" @onclick="CreateNewButtonClicked" style="width: fit-content">Создать новое</button>
+                </div>
+            </div>
+            <div class="row row-cols-auto">
+                @foreach (var dynamicField in _eventInfo.SignupForm.DynamicFields)
+                {
+                    <div class="col">
+                        <div class="card">
+                            <div class="card-header">
+                                "@(dynamicField.Title)"
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="title-input" class="form-label">Название</label>
+                                    <input type="text" class="form-control" id="title-input" placeholder="Название поля" @bind="dynamicField.Title">
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <label class="form-check-label" for="signupOpenedCheckbox@(dynamicField.Id)">
+                                        Обязательное
+                                    </label>
+                                    <input class="form-check-input" type="checkbox" id="signupOpenedCheckbox@(dynamicField.Id)" @bind="dynamicField.IsRequired">
+                                </div>
+                                <DropDown Items="_fieldTypes.Types.Select(t => t.Title).ToList()" Title="Тип поля" 
+                                          IsAutoWidth="true" SelectionChangedAction="type => SelectionChangedAction(dynamicField, type)"
+                                          InitialSelectedItem="dynamicField.Type"/>
+                                @if (dynamicField.Type == "text")
+                                {
+                                    <div class="mb-3">
+                                        <label for="max-symbols-input" class="form-label">Макс. кол-во символов</label>
+                                        <input type="text" class="form-control" id="max-symbols-input" placeholder="100" @bind="dynamicField.MaxSymbols">
+                                    </div>
+                                }
+                                @if (dynamicField.Type == "number")
+                                {
+                                    <div class="mb-3">
+                                        <label for="min-value-input" class="form-label">Мин. значение</label>
+                                        <input type="number" class="form-control" id="min-value-input" placeholder="0" @bind="dynamicField.MinValue">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="max-value-input" class="form-label">Макс. значение</label>
+                                        <input type="number" class="form-control" id="max-value-input" placeholder="100" @bind="dynamicField.MaxValue">
+                                    </div>
+                                }
+                                <button class="btn btn-success" @onclick="() => SaveButtonClicked(dynamicField)" style="width: fit-content">Сохранить</button>
+                                <button class="btn btn-outline-danger" @onclick="() => DeleteButtonClicked(dynamicField.Id)" style="width: fit-content">Удалить</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            @if (_hasErrors)
+            {
+            <div class="row mb-3 p-3" style="outline: darkred 1px solid; border-radius: 10px">
+                Внимание:
+                <ul class="text-danger p-0 m-0">
+                    @foreach (var error in _errorsList)
+                    {
+                    <li style="list-style-position: inside;">@error</li>
+                    }
+                </ul>
+            </div>
+            }
+            
+        </div>
+        <div class="col-2">
+            <EditEventNavigation EventId="EventId" ActiveTab="EditEventTab.SignUpForm" />
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid EventId { get; set; }
+    
+    private EventResponse _eventInfo = new EventResponse
+    {
+        IsPublic = false,
+        Title = "Название мероприятия",
+        IsOnline = true,
+        IsSignupOpened = false,
+        City = "Город",
+        Address = "Адрес",
+        DateStart = DateTime.Now,
+        DateEnd = DateTime.Now,
+        Description = "Описание мероприятия.",
+        SignupWindows = [],
+        BannerImage = "",
+        SignupForm = new EventFormResponse
+        {
+            IsFioRequired = false,
+            IsPhoneRequired = false,
+            IsEmailRequired = false,
+            DynamicFields = []
+        },
+        Contacts = []
+    };
+
+    private DynamicFieldTypesResponse _fieldTypes = new DynamicFieldTypesResponse
+    {
+        Types = []
+    };
+
+    private bool _hasErrors;
+    private List<string> _errorsList = [];
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _eventInfo = await GetEventInfo();
+        _fieldTypes = await GetDynamicFieldsTypes();
+    }
+    
+    private async Task<DynamicFieldTypesResponse> GetDynamicFieldsTypes()
+    {
+        var empty = new DynamicFieldTypesResponse
+        {
+            Types = []
+        };
+        var response = new DynamicFieldTypesResponse
+        {
+            Types = []
+        };
+        try
+        {
+            response = await Http.SendHttpRequestAsync<DynamicFieldTypesResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Get,
+                EndpointPath = $"api/dynamic-field-types"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Ошибка получения списка типов полей: {e.Message}");
+            return empty;
+        }
+        if (response == null)
+        {
+            AddError("Ошибка получения списка типов полей.");
+            return empty;
+        }
+
+        return response;
+    }
+    
+    private async Task<EventResponse> GetEventInfo()
+    {
+        EventResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<EventResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Get,
+                EndpointPath = $"api/my-events/{EventId}"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            NavigationManager.NavigateTo("/my-events", true, true);
+            return null!;
+        }
+        if (response == null)
+        {
+            NavigationManager.NavigateTo("/my-events", true, true);
+            return null!;
+        }
+
+        return response;
+    }
+    
+    private async Task SaveFormButtonClicked()
+    {
+        _errorsList.Clear();
+        EventFormResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<EventFormResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Put,
+                EndpointPath = $"api/my-events/{EventId}/form",
+                Body = new UpdateSignupFormRequest
+                {
+                    IsFioRequired = _eventInfo.SignupForm.IsFioRequired,
+                    IsPhoneRequired = _eventInfo.SignupForm.IsPhoneRequired,
+                    IsEmailRequired = _eventInfo.SignupForm.IsEmailRequired
+                }
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Ошибка сохранения: {e.Message}");
+            return;
+        }
+        
+        if (response == null)
+        {
+            AddError("Неизвестная ошибка сохранения.");
+        }
+    }
+
+    private void AddError(string text)
+    {
+        _errorsList.Add(text);
+        _hasErrors = true;
+        StateHasChanged();
+    }
+
+    private void SelectionChangedAction(FormFieldResponse field, string typeTitle)
+    {
+        field.Type = typeTitle;
+        field.MaxSymbols = 250;
+        field.MinValue = "0";
+        field.MaxValue = "100";
+        StateHasChanged();
+    }
+
+    private async Task SaveButtonClicked(FormFieldResponse dynamicField)
+    {
+        _errorsList.Clear();
+        _hasErrors = false;
+        if (string.IsNullOrWhiteSpace(dynamicField.Title))
+        {
+            AddError("Заполните название у поля.");
+        }
+        FormFieldResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<FormFieldResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Put,
+                EndpointPath = $"api/my-events/{EventId}/form/fields/{dynamicField.Id}", 
+                Body = new UpdateFieldRequest
+                {
+                    Title = dynamicField.Title,
+                    IsRequired = dynamicField.IsRequired,
+                    FieldTypeId = _fieldTypes.Types.First(t => t.Title == dynamicField.Type).Id,
+                    MaxSymbols = dynamicField.MaxSymbols.Value,
+                    MinValue = dynamicField.MinValue,
+                    MaxValue = dynamicField.MaxValue
+                }
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Возникла ошибка во время сохранения поля: {e.Message}");
+            return;
+        }
+        if (response == null)
+        {
+            AddError($"Возникла неизвестная ошибка во время сохранения поля.");
+            return;
+        }
+        StateHasChanged();
+    }
+
+    private async Task DeleteButtonClicked(Guid dynamicFieldId)
+    {
+        BaseStatusResponse? response;
+        _hasErrors = false;
+        _errorsList.Clear();
+        try
+        {
+            response = await Http.SendHttpRequestAsync<BaseStatusResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Delete,
+                EndpointPath = $"api/my-events/{EventId}/form/fields/{dynamicFieldId}",
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Возникла ошибка во время удаления поля: {e.Message}");
+            return;
+        }
+        if (response == null)
+        {
+            AddError($"Возникла неизвестная ошибка во время удаления поля.");
+            return;
+        }
+        if (!response.Completed)
+        {
+            AddError($"Возникла ошибка во время удаления поля: {response.Message}");
+            return;
+        }
+
+        var fieldToRemove = _eventInfo.SignupForm.DynamicFields.First(c => c.Id == dynamicFieldId);
+        var list = _eventInfo.SignupForm.DynamicFields.ToList();
+        list.Remove(fieldToRemove);
+        _eventInfo.SignupForm.DynamicFields = list.ToArray();
+        StateHasChanged();
+    }
+    
+    private async Task CreateNewButtonClicked()
+    {
+        FormFieldResponse? response;
+        _hasErrors = false;
+        _errorsList.Clear();
+        try
+        {
+            response = await Http.SendHttpRequestAsync<FormFieldResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Post,
+                EndpointPath = $"api/my-events/{EventId}/form/fields"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Возникла ошибка во время создания поля: {e.Message}");
+            return;
+        }
+
+        if (response == null)
+        {
+            AddError($"Возникла неизвестная ошибка во время создания поля.");
+            return;
+        }
+
+        _eventInfo.SignupForm.DynamicFields = _eventInfo.SignupForm.DynamicFields.Append(response).ToArray();
+        StateHasChanged();
+    }
+}

@@ -65,7 +65,7 @@ public class HttpService
             var response = await httpClient.SendAsync(request);
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine($"> HTTP request to {request.RequestUri} failed with response code {response.StatusCode}.");
+                Console.WriteLine($"> HTTP request {request.Method.Method} {request.RequestUri} failed with response code {response.StatusCode}.");
             }
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
@@ -76,16 +76,16 @@ public class HttpService
                 await _tokenAuthManager.LogoutUserAsync();
                 return default;
             }
-            
+            var contentString = await response.Content.ReadAsStringAsync();
             response.EnsureSuccessStatusCode();
             
-            var contentString = await response.Content.ReadAsStringAsync();
+            
             var settings = new JsonSerializerSettings
             {
                 ContractResolver = new CamelCasePropertyNamesContractResolver()
             };
             var result = JsonConvert.DeserializeObject<T>(contentString, settings);
-            Console.WriteLine($"> HTTP request to {request.RequestUri} sent successfully with response code {response.StatusCode}.");
+            Console.WriteLine($"> HTTP request {request.Method.Method} {request.RequestUri} sent successfully with response code {response.StatusCode}.");
             await TryToWriteRefreshTokenToAuthManager(handler, requestData);
             return result;
         }
@@ -231,6 +231,8 @@ public class HttpService
 
                 return new StringContent(s, Encoding.UTF8, MediaTypeNames.Text.Xml);
             }
+            case ContentType.MultipartFormData:
+                return (MultipartFormDataContent)body;
             default:
                 throw new ArgumentOutOfRangeException(nameof(contentType), contentType, null);
         }

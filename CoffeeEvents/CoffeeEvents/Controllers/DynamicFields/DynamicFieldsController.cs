@@ -87,8 +87,8 @@ public class DynamicFieldsController : Controller
             IsRequired = false,
             FieldTypeId = fieldTypes[0].Id,
             MaxSymbols = int.MaxValue,
-            MinValue = null,
-            MaxValue = null,
+            MinValue = "0",
+            MaxValue = "9999",
             EventFormId = forms[0].Id,
         };
 

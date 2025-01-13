@@ -1,6 +1,6 @@
 ﻿@typeparam T
 
-<div class="mb-3">
+<div class="mb-3 p-0">
     @if (!string.IsNullOrWhiteSpace(Title))
     {
         <label for="@(_guid.ToString())" class="form-label">@Title</label>
@@ -62,10 +62,12 @@
     
     [Parameter]
     public Action<T?>? SelectionChangedAction { get; set; }
-    
-    /*[Parameter]
-    public T? InitialSelectedItem { get; set; }*/
 
+    [Parameter] 
+    public T? InitialSelectedItem { get; set; }
+
+    private Guid _initialSelectedItemId;
+    
     [Parameter] 
     public Func<T, string>? CustomToStringFormat { get; set; } = null;
 
@@ -85,8 +87,17 @@
             Items = new List<T>();
         }
         _itemsDict = Items.Where(i => i is not null).ToDictionary(i => Guid.NewGuid(), i => i);
+        if (InitialSelectedItem != null && !InitialSelectedItem.Equals(default))
+        {
+            SelectItem(InitialSelectedItem);
+        }
     }
 
+    private string GetSelectedState(Guid itemId)
+    {
+        return itemId == _initialSelectedItemId ? "selected=\"\"" : "";
+    }
+    
     private string GetStyleForSelect()
     {
         return IsAutoWidth ? "width: auto" : "";
@@ -94,11 +105,25 @@
     
     public void AddItem(T item)
     {
-        Items.Add(item);
         _itemsDict.Add(Guid.NewGuid(), item);
         StateHasChanged();
     }
 
+    public void AddItemRange(T[] items)
+    {
+        foreach (var item in items)
+        {
+            _itemsDict.Add(Guid.NewGuid(), item);
+        }
+        StateHasChanged();
+    }
+    
+    public void ClearItems()
+    {
+        _itemsDict.Clear();
+        StateHasChanged();
+    }
+    
     private bool IsSelected(T? item)
     {
         if (item is null)

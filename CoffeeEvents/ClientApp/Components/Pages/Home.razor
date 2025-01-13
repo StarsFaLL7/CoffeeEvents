@@ -1,7 +1,44 @@
 ﻿@page "/"
+@using CoffeeEvents.Controllers.Base.Responses
+@using CoffeeEvents.Controllers.Events.Responses
+@using ClientApp.Components.Cards
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Coffee Events</PageTitle>
+<div class="container">
+    <div class="row">
+        <h1>Добро пожаловать!</h1>
+    </div>
+    <div class="row mb-4">
+        <p>На нашем сервисе вы можете создать или записаться на мероприятие.</p>
+    </div>
+    <div class="row mb-3">
+        <h5>Посмотрите подборку ближайших 10-ти мероприятий</h5>
+    </div>
+    <div class="row row-cols-3 g-4">
+        @foreach (var userEvent in _upcomingEvents)
+        {
+            <div class="col">
+                <EventCard EventInfo="userEvent" />
+            </div>
+        }
+    </div>
+</div>
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
+@code
+{
+    private BasicEventInfoResponse[] _upcomingEvents = [];
+    
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await Http.SendHttpRequestAsync<UpcomingEventsResponse>(new HttpRequestData
+        {
+            Method = HttpMethod.Get,
+            EndpointPath = "api/events/upcoming/10"
+        });
+        if (response == null)
+        {
+            return;
+        }
+        _upcomingEvents = response.Events;
+    }
+}

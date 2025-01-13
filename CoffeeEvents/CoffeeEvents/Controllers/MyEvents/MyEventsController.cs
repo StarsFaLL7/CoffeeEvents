@@ -197,8 +197,8 @@ public class MyEventsController : Controller
         userEvent.IsSignupOpened = request.IsSignupOpened;
         userEvent.City = request.City;
         userEvent.Address = request.Address;
-        userEvent.DateStart = request.DateStart;
-        userEvent.DateEnd = request.DateEnd;
+        userEvent.DateStart = request.DateStart.ToUniversalTime();
+        userEvent.DateEnd = request.DateEnd.ToUniversalTime();
         userEvent.Description = request.Description;
         await _eventService.SaveAsync(userEvent);
         

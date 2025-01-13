@@ -1,0 +1,49 @@
+﻿@using CoffeeEvents.Controllers.Base.Responses
+<div class="card">
+    <div class="d-flex align-items-center justify-content-center">
+        <img src="@EventInfo.BannerImage" class="card-img-top" alt="@EventInfo.Title" style="max-width: 200px">
+    </div>
+    <div class="card-body">
+        <h5 class="card-title">@EventInfo.Title</h5>
+        <p class="card-text">@GetDescription</p>
+        <p class="card-text">
+            <small class="text-body-secondary">
+                С @(EventInfo.DateStart.ToString("dd.MM.yyyy")) до @(EventInfo.DateEnd.ToString("dd.MM.yyyy"))
+            </small></p>
+        <div class="container p-0">
+            <div class="row row-cols-auto g-2">
+                <div class="col">
+                    <a href="events/@(EventInfo.Id)" class="btn btn-primary">Подробнее</a>
+                </div>
+                @if (AddEditButton)
+                {
+                    <div class="col">
+                        <a href="edit-event/@(EventInfo.Id)/main" class="btn btn-primary">Редактировать</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    @if (EventInfo.IsOnline)
+    {
+        <div class="card-footer">
+            <small class="text-body-secondary">Онлайн</small>
+        </div>
+    }
+    else
+    {
+        <div class="card-footer">
+            <small class="text-body-secondary">г. @(EventInfo.City), @EventInfo.Address</small>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] [EditorRequired] 
+    public BasicEventInfoResponse EventInfo { get; set; }
+
+    private string GetDescription => EventInfo.Description.Length > 50 ? EventInfo.Description[0..50] + "..." : EventInfo.Description;
+    
+    [Parameter]
+    public bool AddEditButton { get; set; }
+}

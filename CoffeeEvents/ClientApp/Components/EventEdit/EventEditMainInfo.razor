@@ -1,0 +1,332 @@
+﻿@page "/edit-event/{EventId:guid}/main"
+@using ClientApp.Services.Http.Enums
+@using CoffeeEvents.Controllers.Base.Responses
+@using CoffeeEvents.Controllers.Common.Responses
+@using CoffeeEvents.Controllers.Events.Responses
+@using CoffeeEvents.Controllers.MyEvents.Requests
+@using CoffeeEvents.Controllers.MyEvents.Responses
+@using CoffeeEvents.Controllers.UserInfo.Responses
+
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <div class="row">
+                <h1 class="mb-4">Редактирование "@_eventInfo.Title"</h1>
+            </div>
+            <div class="row">
+                <h4 class="mb-3">Основная информация</h4>
+            </div>
+            <div class="row d-flex justify-content-center">
+                <img src="@_eventInfo.BannerImage" class="img-fluid" alt="Баннер мероприятия" style="max-height: 300px; width: auto">
+            </div>
+            <div class="row mb-3">
+                <label for="formFile" class="form-label">Изменить баннер (тип файла: jpg, png, webp)</label>
+                <InputFile OnChange="ImageUploaded" class="form-control" id="formFile" />
+            </div>
+            <div class="row mb-3">
+                <label for="title-input" class="form-label">Название</label>
+                <input type="text" class="form-control" id="title-input" placeholder="Название мероприятия" @bind="_eventInfo.Title">
+            </div>
+            <div class="row mb-3">
+                <label for="description-input" class="form-label">Описание</label>
+                <textarea class="form-control" id="description-input" rows="3" @bind="_eventInfo.Description"></textarea>
+            </div>
+            <div class="mb-3 form-check">
+                <label class="form-check-label" for="signupOpenedCheckbox">
+                    Запись открыта
+                </label>
+                <input class="form-check-input" type="checkbox" value="" id="signupOpenedCheckbox" @bind="_eventInfo.IsSignupOpened">
+            </div>
+            <div class="mb-3 form-check">
+                <label class="form-check-label" for="publicCheckbox">
+                    Отображать мероприятие в общем поиске
+                </label>
+                <input class="form-check-input" type="checkbox" value="" id="publicCheckbox" @bind="_eventInfo.IsPublic">
+            </div>
+            <div class="mb-3 form-check">
+                <label class="form-check-label" for="onlineCheckbox">
+                    Онлайн
+                </label>
+                <input class="form-check-input" type="checkbox" value="" id="onlineCheckbox" @bind="_eventInfo.IsOnline">
+            </div>
+            <div class="row mb-3">
+                <DropDown Items="_cities" @ref="_dropdownCities" AddEmptyVariant="true" Title="Город" SelectionChangedAction="CitySelectionChanged"/>
+            </div>
+            @if (!_eventInfo.IsOnline)
+            {
+                <div class="row mb-3">
+                    <label for="address-input" class="form-label">Адрес</label>
+                    <input type="text" class="form-control" id="address-input" placeholder="ул. Пушкина, 13, оф. 215" @bind="_eventInfo.Address">
+                </div>
+            }
+            <div class="row mb-3">
+                <label for="dateStart-input" class="form-label">Дата начала</label>
+                <input type="datetime" class="form-control" id="dateStart-input" @bind="_eventInfo.DateStart">
+            </div>
+            <div class="row mb-3">
+                <label for="dateEnd-input" class="form-label">Дата окончания</label>
+                <input type="datetime" class="form-control" id="dateEnd-input" @bind="_eventInfo.DateEnd">
+            </div>
+            <div class="row mb-3">
+                <label for="url-input" class="form-label">Ссылка на страницу мероприятия</label>
+                <input type="text" class="form-control" id="url-input" value="@GetUrlForEvent" disabled="disabled">
+            </div>
+            @if (_hasErrors)
+            {
+            <div class="row mb-3 p-3" style="outline: darkred 1px solid; border-radius: 10px">
+                Внимание:
+                <ul class="text-danger p-0 m-0">
+                    @foreach (var error in _errorsList)
+                    {
+                    <li style="list-style-position: inside;">@error</li>
+                    }
+                </ul>
+            </div>
+            }
+            <div class="row mb-3">
+                <button class="btn btn-success" @onclick="SaveButtonClicked" style="width: fit-content">Сохранить</button>
+            </div>
+            <div class="row mb-3">
+                <button class="btn btn-outline-danger" @onclick="DeleteButtonClicked" style="width: fit-content">Удалить</button>
+            </div>
+        </div>
+        <div class="col-2">
+            <EditEventNavigation EventId="EventId" ActiveTab="EditEventTab.Main" />
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid EventId { get; set; }
+
+    private string GetUrlForEvent => NavigationManager.BaseUri + $"events/{EventId}/";
+    
+    private EventResponse _eventInfo = new EventResponse
+    {
+        IsPublic = false,
+        Title = "Название мероприятия",
+        IsOnline = true,
+        IsSignupOpened = false,
+        City = "Город",
+        Address = "Адрес",
+        DateStart = DateTime.Now,
+        DateEnd = DateTime.Now,
+        Description = "Описание мероприятия.",
+        SignupWindows = [],
+        BannerImage = "",
+        SignupForm = new EventFormResponse
+        {
+            IsFioRequired = false,
+            IsPhoneRequired = false,
+            IsEmailRequired = false,
+            DynamicFields = []
+        },
+        Contacts = []
+    };
+
+    private bool _hasErrors;
+    private List<string> _errorsList = [];
+    
+    private List<string> _cities = [];
+    private DropDown<string>? _dropdownCities;
+    private string[] _allowerimageTypes = ["image/jpeg", "image/png", "image/webp"];
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _eventInfo = await GetEventInfo();
+        await FillCitiesInfo();
+    }
+
+    private async Task FillCitiesInfo()
+    {
+        if (_dropdownCities == null)
+        {
+            return;
+        }
+        var response = await Http.SendHttpRequestAsync<CitiesResponse>(new HttpRequestData
+        {
+            Method = HttpMethod.Get,
+            EndpointPath = "api/cities"
+        });
+        if (response != null)
+        {
+            var cities = response.Cities.Select(c => c.Name).OrderBy(s => s).ToArray();
+            _dropdownCities.AddItemRange(cities);
+        }
+        else
+        {
+            _dropdownCities.AddItem("Ошибка получения списка городов.");
+        }
+    }
+    
+    private async Task<EventResponse> GetEventInfo()
+    {
+        EventResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<EventResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Get,
+                EndpointPath = $"api/my-events/{EventId}"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            NavigationManager.NavigateTo("/my-events", true, true);
+            return null!;
+        }
+        if (response == null)
+        {
+            NavigationManager.NavigateTo("/my-events", true, true);
+            return null!;
+        }
+
+        return response;
+    }
+
+    private void CitySelectionChanged(string? obj)
+    {
+        _eventInfo.City = obj;
+    }
+
+    private async Task ImageUploaded(InputFileChangeEventArgs browserFile)
+    {
+        if (!_allowerimageTypes.Contains(browserFile.File.ContentType))
+        {
+            _errorsList.Clear();
+            AddError("Недопустимый формат файла.");
+        }
+
+        var extension = browserFile.File.ContentType.Split('/')[1];
+
+        UpdateAvatarResponse? response;
+        try
+        {
+            byte[] fileBytes;
+            using (var ms = new MemoryStream())
+            {
+                await browserFile.File.OpenReadStream().CopyToAsync(ms);
+                fileBytes = ms.ToArray();
+            }
+            response = await Http.SendHttpRequestAsync<UpdateAvatarResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Post,
+                EndpointPath = $"api/my-events/{EventId}/image",
+                Body = new MultipartFormDataContent {
+                    { new ByteArrayContent(fileBytes), "file", $"file.{extension}" }
+                },
+                ContentType = ContentType.MultipartFormData
+            });
+        }
+        catch (Exception e)
+        {
+            AddError($"Ошибка при загрузке файла: {e.Message}");
+            return;
+        }
+
+        if (response == null)
+        {
+            AddError($"Неизвестная ошибка при загрузке файла.");
+            return;
+        }
+
+        _eventInfo.BannerImage = response.Image;
+        StateHasChanged();
+    }
+    
+    private async Task SaveButtonClicked()
+    {
+        _errorsList.Clear();
+        _hasErrors = false;
+        if (string.IsNullOrWhiteSpace(_eventInfo.Title))
+        {
+            AddError("Заполните название мероприятия");
+        }
+        if (_eventInfo.DateEnd < _eventInfo.DateStart)
+        {
+            AddError("Время начала мероприятия не может быть позже его окончания.");
+        }
+        if (!_eventInfo.IsOnline && string.IsNullOrWhiteSpace(_eventInfo.City))
+        {
+            AddError("Выберите город проведения мероприятия");
+        }
+        if (_hasErrors)
+        {
+            return;
+        }
+
+        BaseStatusResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<BaseStatusResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Put,
+                EndpointPath = $"api/my-events/{EventId}",
+                Body = new UpdateEventRequest
+                {
+                    IsPublic = _eventInfo.IsPublic,
+                    Title = _eventInfo.Title,
+                    IsOnline = _eventInfo.IsOnline,
+                    DateStart = _eventInfo.DateStart,
+                    DateEnd = _eventInfo.DateEnd,
+                    City = _eventInfo.City,
+                    Address = _eventInfo.Address,
+                    IsSignupOpened = _eventInfo.IsSignupOpened,
+                    Description = _eventInfo.Description
+                }
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Ошибка сохранения: {e.Message}");
+            return;
+        }
+        
+        if (response == null)
+        {
+            AddError("Неизвестная ошибка сохранения.");
+        }
+        else if (!response.Completed)
+        {
+            AddError($"Ошибка сохранения: {response.Message}");
+        }
+    }
+
+    private void AddError(string text)
+    {
+        _errorsList.Add(text);
+        _hasErrors = true;
+        StateHasChanged();
+    }
+
+    private async Task DeleteButtonClicked()
+    {
+        _errorsList.Clear();
+        _hasErrors = false;
+        BaseStatusResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<BaseStatusResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Delete,
+                EndpointPath = $"api/my-events/{EventId}"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Ошибка удаления мероприятия: {e.Message}");
+            return;
+        }
+        
+        if (response == null)
+        {
+            AddError("Неизвестная ошибка удаления мероприятия.");
+        }
+        else if (!response.Completed)
+        {
+            AddError($"Ошибка удаления мероприятия: {response.Message}");
+        }
+        NavigationManager.NavigateTo("/my-events", true);
+    }
+}

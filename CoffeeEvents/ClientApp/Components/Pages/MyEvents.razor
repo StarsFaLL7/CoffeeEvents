@@ -1,0 +1,63 @@
+﻿@page "/my-events"
+@using CoffeeEvents.Controllers.Base.Responses
+@using ClientApp.Components.Cards
+@using ClientApp.Services.Http.Models
+@using CoffeeEvents.Controllers.Events.Responses
+
+<div class="container">
+    <div class="row row-cols-auto">
+        <div class="col">
+            <h1>Ваши мероприятия</h1>
+        </div>
+        <div class="col">
+            <button class="btn btn-primary" style="width: fit-content" @onclick="CreateNewEvent">Создать новое</button>
+        </div>
+    </div>
+    
+    <div class="row row-cols-3 g-4">
+        @foreach (var userEvent in _events)
+        {
+            <div class="col">
+                <EventCard EventInfo="userEvent" AddEditButton="true" />
+            </div>
+        }
+    </div>
+</div>
+@code {
+    private List<BasicEventInfoResponse> _events = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!await AuthManager.IsUserLoggedAsync())
+        {
+            NavigationManager.NavigateTo("/");
+        }
+
+        var response = await Http.SendHttpRequestAsync<UpcomingEventsResponse>(new HttpRequestData
+        {
+            Method = HttpMethod.Get,
+            EndpointPath = "api/my-events",
+            QueryParameterList = [new KeyValuePair<string, string>("skip", "0"), new KeyValuePair<string, string>("take", "100")]
+        });
+        if (response != null)
+        {
+            _events = response.Events.ToList();
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateNewEvent()
+    {
+        var response = await Http.SendHttpRequestAsync<BasicEventInfoResponse>(new HttpRequestData
+        {
+            Method = HttpMethod.Post,
+            EndpointPath = "api/my-events"
+        });
+        if (response != null)
+        {
+            _events.Add(response);
+            StateHasChanged();
+        }
+    }
+
+}

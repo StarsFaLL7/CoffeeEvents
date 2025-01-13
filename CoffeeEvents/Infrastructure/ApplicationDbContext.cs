@@ -7,7 +7,7 @@ namespace Infrastructure;
 public class ApplicationDbContext : DbContext
 {
     private readonly string _connectionString;
-    
+
     public DbSet<DynamicFieldType> DynamicFieldTypes { get; init; }
     public DbSet<EntryFieldValue> EntryFieldValues { get; init; }
     public DbSet<EventSignupEntry> EventSignupEntries { get; init; }
@@ -20,7 +20,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<UserRole> UsersRoles { get; init; }
     public DbSet<RefreshToken> RefreshTokens { get; init; }
     public DbSet<RevokedAccessToken> RevokedAccessTokens { get; init; }
-    
+
     public ApplicationDbContext(IConfiguration configuration)
     {
         var readedConnString = configuration.GetConnectionString("DefaultConnection");
@@ -28,15 +28,16 @@ public class ApplicationDbContext : DbContext
         {
             throw new Exception("Connection string \"DefaultConnection\" wasn't found in appsettings.json");
         }
+
         _connectionString = readedConnString;
     }
-    
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.UseSnakeCaseNamingConvention();
         optionsBuilder.UseNpgsql(_connectionString);
     }
-    
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Добавление начальных данных
@@ -63,12 +64,12 @@ public class ApplicationDbContext : DbContext
                 IsAdmin = false
             }
         );
-        
+
         modelBuilder.Entity<DynamicFieldType>().HasData(
             new DynamicFieldType
             {
                 Id = Guid.NewGuid(),
-                Title = "string"
+                Title = "text"
             },
             new DynamicFieldType
             {

@@ -1,0 +1,386 @@
+﻿@page "/events/{EventId:guid}/sign-up"
+@using CoffeeEvents.Controllers.Events.Requests
+@using CoffeeEvents.Controllers.Events.Responses
+
+<div class="container">
+    <div class="row">
+        <h1 class="mb-4">Запись на мероприятие "@_eventInfo.Title"</h1>
+    </div>
+    <div class="row mb-3">
+        <div class="col">
+            <div class="row">
+                <h5 class="mb-1 p-0">Выберите дату записи:</h5>
+            </div>
+            <div class="row">
+                <DropDown Items="_dates" @ref="_datesDropDown" CustomToStringFormat="ConvertDateToStr" SelectionChangedAction="DateSelectionChanged" AddEmptyVariant="true"
+                          IsAutoWidth="true"/>
+            </div>
+        </div>
+        <div class="col">
+            <div class="row">
+                <h5 class="mb-1 p-0">Выберите время:</h5>
+            </div>
+            <div class="row">
+                <DropDown Items="_timesFiltered" @ref="_timeDropDown" CustomToStringFormat="ConvertTimeToStr" SelectionChangedAction="TimeSelectionChanged" AddEmptyVariant="true"
+                          IsAutoWidth="true"/>
+            </div>
+        </div>
+        
+    </div>
+    @if (_selectedWindow != null)
+    {
+        <div class="row">
+            <h5 class="p-0 mb-1">Выбрано окно "@_selectedWindow.Title" на @ConvertDateTimeToStr(_selectedWindow.DateTime)</h5>
+        </div>
+        <div class="row">
+            <h5 class="p-0 mb-3">Свободно мест: @(_selectedWindow.TicketsLeft)/@(_selectedWindow.MaxVisitors)</h5>
+        </div>
+    }
+    <div class="row">
+        @if (!_form.IsEmailRequired && !_form.IsFioRequired && !_form.IsPhoneRequired && _form.DynamicFields.Length == 0)
+        {
+            <h5 class="p-0 mb-3">Форма записи пустая, вам не нужно ничего заполнять.</h5>
+        }
+        else
+        {
+            <h5 class="p-0 mb-3">Заполните форму записи:</h5>
+        }
+        
+    </div>
+    <div class="row">
+        <div class="col col-auto">
+            @if (_form.IsFioRequired)
+            {
+                <div class="row mb-3">
+                    <label for="fio-input" class="form-label">ФИО<span class="text-danger"> *</span></label>
+                    <input type="text" class="form-control" id="fio-input" placeholder="Иванов Иван Иванович" @bind="_fioInput">
+                </div>
+            }
+            @if (_form.IsEmailRequired)
+            {
+                <div class="row mb-3">
+                    <label for="email-input" class="form-label">E-mail<span class="text-danger"> *</span></label>
+                    <input type="email" class="form-control" id="email-input" placeholder="example@mail.com" @bind="_emailInput">
+                </div>
+            }
+            @if (_form.IsPhoneRequired)
+            {
+                <div class="row mb-3">
+                    <label for="phone-input" class="form-label">Номер телефона<span class="text-danger"> *</span></label>
+                    <input type="text" class="form-control" id="phone-input" placeholder="+7 (900) 123-45-67" @bind="_phoneInput">
+                </div>
+            }
+            @foreach (var field in _form.DynamicFields)
+            {
+                @if (field.Type == "text")
+                {
+                    <div class="row mb-3">
+                        <label for="dynamic-input" class="form-label">@field.Title
+                            @if (field.IsRequired)
+                            {
+                                <span class="text-danger"> *</span>
+                            }
+                        </label>
+                        <input type="@field.Type" class="form-control" id="dynamic-input" maxlength="@field.MaxSymbols" placeholder="" @bind="_dynamicFieldsValues[field.Id]">
+                    </div>
+                }
+                else
+                {
+                    <div class="row mb-3">
+                        <label for="dynamic-input" class="form-label">@field.Title
+                            @if (field.IsRequired)
+                            {
+                                <span class="text-danger"> *</span>
+                            }
+                        </label>
+                        <input type="@field.Type" class="form-control" id="dynamic-input" max="@field.MaxValue" min="@field.MinValue" placeholder="" @bind="_dynamicFieldsValues[field.Id]">
+                    </div>
+                }
+            }
+            @if (_hasErrors)
+            {
+                <div class="row mb-3 p-3" style="outline: darkred 1px solid; border-radius: 10px">
+                    Внимание:
+                    <ul class="text-danger p-0 m-0">
+                        @foreach (var error in _errorsList)
+                        {
+                            <li style="list-style-position: inside;">@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+            @if (_selectedWindow != null)
+            {
+                if (_selectedWindow.TicketsLeft > 0)
+                {
+                    <div class="row">
+                        <div class="col col-auto p-0">
+                            <button class="btn btn-success" @onclick="SignupForEvent">Записаться</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="row">
+                        <div class="col col-auto p-0">
+                            <h5 class="text-danger">Нет мест в выбранном окне.</h5>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid EventId { get; set; }
+
+    private FullEventInfoResponse _eventInfo = new FullEventInfoResponse
+    {
+        IsPublic = false,
+        Title = "Название мероприятия",
+        BannerImageFilepath = "",
+        IsOnline = true,
+        IsSignupOpened = false,
+        City = "Город",
+        Address = "Адрес",
+        DateStart = DateTime.Now,
+        DateEnd = DateTime.Now,
+        Description = "Описание мероприятия.",
+        OrganizerContacts = [],
+        SignupWindows = []
+    };
+
+    private EventFormResponse _form = new EventFormResponse
+    {
+        IsFioRequired = false,
+        IsPhoneRequired = false,
+        IsEmailRequired = false,
+        DynamicFields = []
+    };
+
+    private List<DateOnly> _dates = [];
+    private List<TimeOnly> _timesFiltered = [];
+    private DropDown<DateOnly> _datesDropDown;
+    private DropDown<TimeOnly> _timeDropDown;
+    private DateOnly? _selectedDate;
+    private TimeOnly? _selectedTime;
+    private SignupWindowResponse? _selectedWindow;
+    
+    private string _fioInput = "";
+    private string _emailInput = "";
+    private string _phoneInput = "";
+    private Dictionary<Guid, string> _dynamicFieldsValues = [];
+
+    private bool _hasErrors;
+    private List<string> _errorsList = [];
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await GetEventInfo();
+        await GetSignupForm();
+    }
+
+    private async Task GetEventInfo()
+    {
+        FullEventInfoResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<FullEventInfoResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Get,
+                EndpointPath = $"api/events/{EventId}"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            NavigationManager.NavigateTo("/events", true, true);
+            return;
+        }
+        if (response == null)
+        {
+            NavigationManager.NavigateTo("/events", true, true);
+            return;
+        }
+
+        _eventInfo = response;
+        _dates = _eventInfo.SignupWindows
+            .Select(w => new DateOnly(w.DateTime.Year, w.DateTime.Month, w.DateTime.Day))
+            .ToList();
+        foreach (var date in _dates)
+        {
+            _datesDropDown.AddItem(date);
+        }
+    }
+
+    private async Task GetSignupForm()
+    {
+        EventFormResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<EventFormResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Get,
+                EndpointPath = $"api/events/{EventId}/form"
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            NavigationManager.NavigateTo("/events", true, true);
+            return;
+        }
+        if (response == null)
+        {
+            NavigationManager.NavigateTo("/events", true, true);
+            return;
+        }
+
+        _form = response;
+        _dynamicFieldsValues = _form.DynamicFields.ToDictionary(f => f.Id, f => "");
+    }
+    
+    private string ConvertDateToStr(DateOnly value)
+    {
+        return value.ToString("dd.MM.yyyy");
+    }
+    
+    private string ConvertTimeToStr(TimeOnly value)
+    {
+        return value.ToString("HH:mm");
+    }
+
+    private string ConvertDateTimeToStr(DateTime value)
+    {
+        return value.ToString("dd.MM.yyyy HH:mm");
+    }
+
+    private void DateSelectionChanged(DateOnly obj)
+    {
+        _selectedDate = obj;
+        _selectedTime = null;
+        _selectedWindow = null;
+        _timesFiltered = _eventInfo.SignupWindows
+            .Where(w => w.DateTime.Year == obj.Year && w.DateTime.Month == obj.Month && w.DateTime.Day == obj.Day)
+            .Select(w => new TimeOnly(w.DateTime.Hour, w.DateTime.Minute))
+            .ToList();
+        _timeDropDown.ClearItems();
+        foreach (var time in _timesFiltered)
+        {
+            _timeDropDown.AddItem(time);
+        }
+        _timeDropDown.SelectItem(default);
+        StateHasChanged();
+    }
+
+    private void TimeSelectionChanged(TimeOnly obj)
+    {
+        _selectedTime = obj;
+        if (_selectedTime == default)
+        {
+            return;
+        }
+        _selectedWindow = _eventInfo.SignupWindows
+            .FirstOrDefault(w => w.DateTime.Year == _selectedDate.Value.Year && 
+                                 w.DateTime.Month == _selectedDate.Value.Month && 
+                                 w.DateTime.Day == _selectedDate.Value.Day && 
+                                 w.DateTime.Hour == _selectedTime.Value.Hour && 
+                                 w.DateTime.Minute == _selectedTime.Value.Minute);
+        StateHasChanged();
+    }
+
+    private async Task SignupForEvent()
+    {
+        if (SignupFormHasErrors())
+        {
+            return;
+        }
+
+        if (_selectedWindow == null)
+        {
+            AddError("Вам необходимо выбрать окно для записи...");
+            return;
+        }
+        await GetEventInfo();
+        var window = _eventInfo.SignupWindows.FirstOrDefault(w => w.Id == _selectedWindow.Id);
+        if (window == null)
+        {
+            AddError("К сожалению, выбранное окно было удалено...");
+            return;
+        }
+        if (window.TicketsLeft <= 0)
+        {
+            AddError("К сожалению, мест на это окно уже не осталось...");
+            return;
+        }
+
+        SignupResponse? response;
+        try
+        {
+            response = await Http.SendHttpRequestAsync<SignupResponse>(new HttpRequestData
+            {
+                Method = HttpMethod.Post,
+                EndpointPath = $"api/events/{EventId}/sign-up",
+                Body = new SignupRequest
+                {
+                    SignupWindowId = window.Id,
+                    Phone = _phoneInput,
+                    Email = _emailInput,
+                    Fio = _fioInput,
+                    DynamicFieldsValues = _dynamicFieldsValues
+                }
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            AddError($"Ошибка во время отправления запроса на запись: {e.Message}");
+            return;
+        }
+
+        if (response == null)
+        {
+            AddError($"Ошибка во время отправления запроса на запись.");
+            return;
+        }
+        
+        NavigationManager.NavigateTo($"/api/events/{EventId}/entries/{response.EntryId}", true);
+    }
+
+    private void AddError(string text)
+    {
+        _errorsList.Add(text);
+        _hasErrors = true;
+        StateHasChanged();
+    }
+    
+    private bool SignupFormHasErrors()
+    {
+        _errorsList.Clear();
+        _hasErrors = false;
+        foreach (var dynamicField in _form.DynamicFields)
+        {
+            if (dynamicField.IsRequired && string.IsNullOrWhiteSpace(_dynamicFieldsValues[dynamicField.Id]))
+            {
+                AddError($"Поле \"{dynamicField.Title}\" является обязательным, заполните его.");
+            }
+        }
+
+        if (_form.IsEmailRequired && string.IsNullOrWhiteSpace(_emailInput))
+        {
+            AddError("Нужно указать ваш e-mail.");
+        }
+        
+        if (_form.IsPhoneRequired && string.IsNullOrWhiteSpace(_phoneInput))
+        {
+            AddError("Нужно указать ваш номер телефона.");
+        }
+        
+        if (_form.IsFioRequired && string.IsNullOrWhiteSpace(_fioInput))
+        {
+            AddError("Нужно указать ваше ФИО.");
+        }
+
+        return _hasErrors;
+    }
+    
+}

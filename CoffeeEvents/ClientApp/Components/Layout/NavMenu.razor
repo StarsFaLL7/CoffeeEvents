@@ -4,37 +4,57 @@
 @using Domain
 
 
-<div class="top-row">
-    <ul class="nav-list">
-        <li class="nav-item">
-            <a class="nav-link" href="/">
-                Начало
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="events">
-                Мероприятия
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="about">
-                О нас
-            </a>
-        </li>
-    </ul>
-    <AuthorizeView>
-        <Authorized>
-            <img src="@(_user?.AvatarImage)" alt="avatar" width="50px" height="50px"/>
-            <a class="btn btn-primary">
-                @(_user?.Fio ?? "Фамилия Имя Отчество")
-            </a>
-        </Authorized>
-        <NotAuthorized>
-            <a class="btn btn-primary" href="login">
-                Войти
-            </a>
-        </NotAuthorized>
-    </AuthorizeView>
+<div class="top-row container" style="max-width: 100vw">
+    <div class="row" style="width: 100%">
+        <div class="col d-flex align-items-center">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a class="nav-link" href="/">
+                        Начало
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="events">
+                        Мероприятия
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="about">
+                        О сервисе
+                    </a>
+                </li>
+            </ul>
+        </div>
+    
+        <AuthorizeView>
+            <Authorized>
+                <div class="col col-auto">
+                    <div class="row row-cols-auto">
+                        <div class="col d-flex align-items-center">
+                            <img src="@(_user?.AvatarImage)" alt="avatar" width="60px" height="60px" style="border-radius: 10px"/>
+                        </div>
+                        <div class="col">
+                            <div class="row mb-1">
+                                <p class="m-0 p-0">@(_user?.Fio ?? "Фамилия Имя Отчество")</p>
+                            </div>
+                            <div class="row">
+                                <a class="btn btn-primary" href="my-events" style="width: fit-content">
+                                    Мои мероприятия
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="col col-auto">
+                    <a class="btn btn-primary" href="login">
+                        Войти
+                    </a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
 </div>
 
 @code

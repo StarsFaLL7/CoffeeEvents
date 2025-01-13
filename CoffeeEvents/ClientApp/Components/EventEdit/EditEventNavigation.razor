@@ -1,0 +1,27 @@
+﻿<div class="list-group">
+    <a href="/edit-event/@(EventId)/main" class="list-group-item list-group-item-action @GetActiveState(EditEventTab.Main)" aria-current="true">
+        Основная информация
+    </a>
+    <a href="/edit-event/@(EventId)/windows" class="list-group-item list-group-item-action @GetActiveState(EditEventTab.SignUpWindows)" aria-current="true">
+        Окна записи
+    </a>
+    <a href="/edit-event/@(EventId)/form" class="list-group-item list-group-item-action @GetActiveState(EditEventTab.SignUpForm)" aria-current="true">
+        Форма записи
+    </a>
+    <a href="/edit-event/@(EventId)/contacts" class="list-group-item list-group-item-action @GetActiveState(EditEventTab.Contacts)" aria-current="true">
+        Контакты организатора
+    </a>
+</div>
+
+@code {
+    [Parameter] [EditorRequired]
+    public Guid EventId { get; set; }
+    
+    [Parameter] [EditorRequired]
+    public EditEventTab ActiveTab { get; set; }
+
+    public string GetActiveState(EditEventTab tab)
+    {
+        return ActiveTab == tab ? "active" : "";
+    }
+}

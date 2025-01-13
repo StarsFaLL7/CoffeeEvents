@@ -1,6 +1,136 @@
 ﻿@page "/events"
-<h3>Events</h3>
-
+@using ClientApp.Services.Http.Models
+@using CoffeeEvents.Controllers.Base.Responses
+@using CoffeeEvents.Controllers.Common.Responses
+@using CoffeeEvents.Controllers.Events.Responses
+@using ClientApp.Components.Cards
+<PageTitle>Мероприятия</PageTitle>
+<div class="container">
+    <div class="row">
+        <h1>Поиск мероприятий</h1>
+    </div>
+    <div class="row row-cols-auto border-secondary p-2">
+        <div class="col mb-3">
+            <DropDown Items="_cities" @ref="_dropdownCities" AddEmptyVariant="true" Title="Город" />
+        </div>
+        <div class="col mb-3">
+            <label for="event-date" class="form-label">Дата</label>
+            <input type="date" id="event-date" name="event-date" min="2024-01-01" max="2030-12-31" class="form-control" @bind="_dateStrInput"/>
+        </div>
+        <div class="col mb-3">
+            <label for="event-time" class="form-label">Время</label>
+            <input type="time" id="event-time" name="event-time" min="00:00" max="23:59" class="form-control" @bind="_timeStrInput"/>
+        </div>
+        <div class="col mb-3 d-flex flex-column justify-content-center">
+            <div class="mb-1 form-check">
+                <input class="form-check-input" type="checkbox" value="" id="isOnlineCheckbox" @bind="_showOnline">
+                <label class="form-check-label" for="isOnlineCheckbox">
+                    Онлайн
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="" id="isOfflineCheckbox" @bind="_showOffline">
+                <label class="form-check-label" for="isOfflineCheckbox">
+                    Оффлайн
+                </label>
+            </div>
+        </div>
+        <div class="col mb-3">
+            <label for="search-input" class="form-label">Поиск</label>
+            <input type="text" class="form-control" id="search-input" placeholder="Мероприятие по ..." @bind="_searchInput">
+        </div>
+        <div class="col mt-3 mb-3 d-flex align-items-center">
+            <button class="btn btn-primary" @onclick="ShowFilteredEvents">Показать</button>
+        </div>
+    </div>
+    <div class="row row-cols-3 g-4">
+        @foreach (var userEvent in _events)
+        {
+            <div class="col">
+                <EventCard EventInfo="userEvent"></EventCard>
+            </div>
+        }
+    </div>
+</div>
 @code {
+    private DropDown<string> _dropdownCities;
+    private List<string> _cities = [];
+
+    private DateOnly? _dateStrInput;
+    private TimeOnly? _timeStrInput;
+    private bool _showOnline = true;
+    private bool _showOffline = true;
+    private string _searchInput = "";
     
+    private List<BasicEventInfoResponse> _events = [];
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await GetCitiesAsync();
+        
+    }
+
+    private async Task GetCitiesAsync()
+    {
+        var response = await Http.SendHttpRequestAsync<CitiesResponse>(new HttpRequestData
+        {
+            Method = HttpMethod.Get,
+            EndpointPath = "api/cities"
+        });
+        if (response != null)
+        {
+            foreach (var cityName in response.Cities.Select(c => c.Name).OrderBy(s => s))
+            {
+                _dropdownCities.AddItem(cityName);
+            }
+        }
+        else
+        {
+            _dropdownCities.AddItem("Ошибка получения списка городов.");
+        }
+    }
+
+    private async Task ShowFilteredEvents()
+    {
+        var reqData = new HttpRequestData
+        {
+            Method = HttpMethod.Get,
+            EndpointPath = "api/events",
+            QueryParameterList = []
+        };
+        if (!string.IsNullOrWhiteSpace(_dropdownCities.SelectedItem))
+        {
+            reqData.QueryParameterList.Add(new KeyValuePair<string, string>("city", _dropdownCities.SelectedItem));
+        }
+        if (_dateStrInput.HasValue)
+        {
+            var str = $"{_dateStrInput.Value.Day}-{_dateStrInput.Value.Month}-{_dateStrInput.Value.Year}";
+            reqData.QueryParameterList.Add(new KeyValuePair<string, string>("date", str));
+        }
+        if (_timeStrInput.HasValue)
+        {
+            var str = $"{_timeStrInput.Value.Hour}-{_timeStrInput.Value.Minute}";
+            reqData.QueryParameterList.Add(new KeyValuePair<string, string>("time", str));
+        }
+        if (_showOnline && !_showOffline)
+        {
+            reqData.QueryParameterList.Add(new KeyValuePair<string, string>("online", "true"));
+        }
+        if (!_showOnline && _showOffline)
+        {
+            reqData.QueryParameterList.Add(new KeyValuePair<string, string>("online", "false"));
+        }
+        if (!string.IsNullOrWhiteSpace(_searchInput))
+        {
+            reqData.QueryParameterList.Add(new KeyValuePair<string, string>("search", _searchInput));
+        }
+
+        _events.Clear();
+        var response = await Http.SendHttpRequestAsync<UpcomingEventsResponse>(reqData);
+        if (response != null)
+        {
+            _events = response.Events.ToList();
+            StateHasChanged();
+        }
+    }
 }
